@@ -1,0 +1,418 @@
+import controlP5.*;
+import processing.serial.*;
+import cc.arduino.*;
+import org.firmata.*;
+
+ControlP5 cp5;
+Serial myPort;
+Arduino arduino;
+
+
+// Variables for background images and other elements
+PImage bgImage1, bgImage2, bgImage3, bgImage4, bgImage5, bgImage6, bgImage7, ldImage1, ldImage2, ldImage3, fdImage1, fdImage2, fdImage3, w1Image1, f1Image1;
+int step = 1;
+int selectedMenu = 0;
+float distance = 0;
+int FOOD_W = 0;
+long lastRequestTime = 0;
+long step6StartTime = 0;
+PFont buttonFont;
+float scaleFactor = 1.0;
+int FW = 0;
+
+void setup() {
+  //size(1920, 1080);
+  fullScreen(); // Set the sketch to run in full screen
+
+  // Load background images
+  bgImage1 = loadImage("Pictures/bg1.png");
+  bgImage2 = loadImage("Pictures/bg2.png");
+  bgImage3 = loadImage("Pictures/bg3.png");
+  bgImage4 = loadImage("Pictures/bg4.png");
+  bgImage5 = loadImage("Pictures/bg5.png");
+  bgImage6 = loadImage("Pictures/bg6.png");
+  bgImage7 = loadImage("Pictures/bg7.png");
+  ldImage1 = loadImage("Pictures/ld1.png");
+  ldImage2 = loadImage("Pictures/ld2.png");
+  ldImage3 = loadImage("Pictures/ld3.png");
+  fdImage1 = loadImage("Pictures/fd1.png");
+  fdImage2 = loadImage("Pictures/fd2.png");
+  fdImage3 = loadImage("Pictures/fd3.png");
+  w1Image1 = loadImage("Pictures/w1.png");
+  f1Image1 = loadImage("Pictures/f1.png");
+  cp5 = new ControlP5(this);
+  cp5.setColorCaptionLabel(color(255)); // Set the text color of the button to white
+
+
+  // Create buttons for each step
+  createStep1Buttons();
+  createStep2Buttons();
+  createStep3Buttons();
+  createStep4Buttons();
+  createStep5Buttons();
+  createStep7Buttons();
+  
+  // Initialize the serial communication with the Arduino board
+  //String portName = Serial.list()[0];
+  myPort = new Serial(this, "COM5", 9600);
+}
+
+void serialEvent(Serial myPort) {
+  String inString = myPort.readStringUntil('\n');
+  if (inString != null) {
+    inString = trim(inString);
+    println("Received data: " + inString); // Debug log
+    String[] data = split(inString, ",");
+    if (data.length == 2) {
+      distance = float(data[0]);
+      println("Parsed values - distance: " + distance + ", FOOD_W: " + FOOD_W); // Debug log
+    } else if (data.length == 1) {
+      // If only one value is received, it should be the weight
+      FOOD_W = int(float(data[0]));
+      println("Parsed value - FOOD_W: " + FOOD_W); // Debug log
+    } else {
+      println("Unexpected data format"); // Debug log
+    }
+  }
+}
+
+
+void draw() {
+  // Update the interface and elements based on the current step
+  println("Current step: " + step); // Add this line to print the current step
+  delay(50);
+  // Update the interface and elements based on the current step
+  background(255);
+  if (step == 1) {
+    myPort.write('A');
+    image(bgImage1, 0, 0, width, height);
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("cancel2").hide();
+    cp5.getController("start").show();
+    cp5.getController("next2").hide();
+    cp5.getController("next3").hide();
+    cp5.getController("next4").hide();
+    cp5.getController("next5").hide();
+    cp5.getController("lunchMenu1").hide();
+    cp5.getController("lunchMenu2").hide();
+    cp5.getController("lunchMenu3").hide();
+    cp5.getController("lunchMenu4").hide();
+    cp5.getController("confirm").hide();
+
+  } else if (step == 2) {
+    image(bgImage2, 0, 0, width, height);
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("start").hide();
+    cp5.getController("next2").show();
+    cp5.getController("cancel2").show();
+    cp5.getController("lunchMenu1").hide();
+    cp5.getController("lunchMenu2").hide();
+    cp5.getController("lunchMenu3").hide();
+    cp5.getController("lunchMenu4").hide();
+    cp5.getController("next3").hide();
+  } else if (step == 3) {
+    image(bgImage3, 0, 0, width, height);
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("start").hide();
+    cp5.getController("next2").hide();
+    cp5.getController("lunchMenu1").show();
+    cp5.getController("lunchMenu2").show();
+    cp5.getController("lunchMenu3").show();
+    cp5.getController("lunchMenu4").show();
+    cp5.getController("next3").show();
+  } else if (step == 4) {
+    // Just show the background image without zooming
+    image(bgImage4, 0, 0, width, height);
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("lunchMenu1").hide();
+    cp5.getController("lunchMenu2").hide();
+    cp5.getController("lunchMenu3").hide();
+    cp5.getController("lunchMenu4").hide();
+    cp5.getController("next3").hide();
+    cp5.getController("next4").show();
+    
+    
+} else if (step == 5) { 
+    myPort.write('D');
+    background(111);
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("cancel2").hide();
+    cp5.getController("lunchMenu1").hide();
+    cp5.getController("lunchMenu2").hide();
+    cp5.getController("lunchMenu3").hide();
+    cp5.getController("lunchMenu4").hide();
+    distance = myPort.read();
+    println(distance);
+    
+    if(distance > 0 && distance <30){
+    scaleFactor = map(distance, 0, 30, 3.0, 1.0);
+    } else {
+        scaleFactor = 1.0; // Default scale if distance is out of range
+    }
+
+    
+  // Calculate the center point of the image
+  float centerX = bgImage5.width * scaleFactor / 2;
+  float centerY = bgImage5.height * scaleFactor / 2;
+  // Translate to the center point of the image
+  translate(width/2 - centerX, height/2 - centerY);
+  // Draw the background image with the updated scaling factor
+  image(bgImage5, 0, 0, bgImage5.width*scaleFactor, bgImage5.height*scaleFactor);
+  // Translate back to the top left corner
+  translate(centerX - width/2, centerY - height/2);
+    
+    
+    // Show the "Next" button
+    cp5.getController("next5").show();
+    cp5.getController("next3").hide();
+    cp5.getController("next4").hide();
+    cp5.getController("next5").onClick(new CallbackListener() {
+    public void controlEvent(CallbackEvent event) {
+      step = 6;
+      step6StartTime = millis(); // Set the start time of step 6
+    }
+  });
+    
+  } else if (step == 6) {
+    myPort.write('W');
+    cp5.getController("confirm").hide(); // Add this line to hide the confirm button
+    cp5.getController("cancel2").hide();
+    cp5.getController("lunchMenu1").hide();
+    cp5.getController("lunchMenu2").hide();
+    cp5.getController("lunchMenu3").hide();
+    cp5.getController("lunchMenu4").hide();
+    // Three background image looping like animation with around 5 seconds
+    int currentImage = (int) (millis() / 2000) % 3;
+    if (currentImage == 0) {
+      image(ldImage1, 0, 0, width, height);
+    } else if (currentImage == 1) {
+      image(ldImage2, 0, 0, width, height);
+    } else {
+      image(ldImage3, 0, 0, width, height);
+    }
+    FOOD_W = myPort.read();
+    cp5.getController("next2").hide();
+    cp5.getController("next3").hide();
+    cp5.getController("next4").hide();
+    cp5.getController("next5").hide();
+    
+    // Check if 15 seconds have passed since step 6 started
+  if (millis() - step6StartTime >= 15000) {
+    
+    step = 7;
+  }
+    
+  } else if (step == 7) {
+    myPort.write('W');
+    // Display the weight from the HX711 scale
+    
+  // Show background image
+  image(w1Image1, 0, 0, width, height);
+  /*
+  image(fdImage1, 100, 150, (width / 20), (height / 15));
+  image(fdImage2, 200, 150, (width / 20), (height / 15));
+  image(fdImage3, 300, 150, (width / 20), (height / 15));
+  */
+    textSize(32);
+    textAlign(CENTER);
+
+    FW = FOOD_W;
+    text("Weight: " + FW + " g", width / 2, height / 2); 
+
+
+    delay(100);
+  cp5.getController("confirm").show();
+  cp5.getController("cancel2").hide();
+    cp5.getController("next3").hide();
+    cp5.getController("next4").hide();
+    cp5.getController("next5").hide();
+}
+}
+
+
+
+
+// Functions to create buttons for each step
+void createStep1Buttons() {
+   PFont buttonFont = createFont("Arial", 60); // Create a font with size 20
+  cp5.setColorBackground(color(0, 0, 0)); // Set the background color of all buttons to red
+  cp5.setColorCaptionLabel(color(255)); // Set the text color of the button to white
+  cp5.addButton("start")
+     .setPosition(width / 2 - 425, height - 330)
+     .setSize(850, 150)
+     .setLabel("Start")
+
+     .setColorActive(color(0, 0, 0)) // Set active color to red
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         step = 2;
+       }
+     });
+      cp5.getController("start").getCaptionLabel().setFont(buttonFont); // Set font for the "start" button
+}
+
+
+void createStep2Buttons() {
+   PFont buttonFont = createFont("Arial", 60); // Create a font with size 20
+  cp5.addButton("next2")
+     .setPosition(width / 2 + 150, height - 200)
+     .setSize(350, 100)
+     .setLabel("Next")
+     .setColorActive(color(255, 0, 0)) // Set active color to red
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         step = 3;
+       }
+     });
+     
+     // Add a new cancel button for step 2
+   cp5.addButton("cancel2")
+      .setPosition(width / 2 - 720, height - 225)
+      .setSize(150, 150)
+      .setLabel("←")
+      .setColorActive(color(255, 0, 0)) // Set active color to red
+      .hide()
+      .onClick(new CallbackListener() {
+        public void controlEvent(CallbackEvent event) {
+          step = 1;
+        }
+      });
+     
+     cp5.getController("next2").getCaptionLabel().setFont(buttonFont); // Set font for the "start" button
+     cp5.getController("cancel2").getCaptionLabel().setFont(buttonFont); // Set font for the "start" button
+}
+
+void createStep3Buttons() {
+  PFont buttonFont = createFont("Arial", 20); // Create a font with size 20
+  cp5.addButton("lunchMenu1")
+     .setPosition((width / 2) - 250, (height / 2) - 450)
+     .setSize(150, 100)
+     .setLabel("Set A")
+     .setColorActive(color(255, 0, 0))
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         selectedMenu = 1;
+         updateMenuButtons();
+       }
+     });
+
+  cp5.addButton("lunchMenu2")
+     .setPosition((width / 2) + 300, (height / 2) - 450)
+     .setSize(150, 100)
+     .setLabel("Set B")
+     .setColorActive(color(255, 0, 0))
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         selectedMenu = 2;
+         updateMenuButtons();
+       }
+     });
+
+  cp5.addButton("lunchMenu3")
+     .setPosition((width / 2) - 250, (height / 2) + 25)
+     .setSize(150, 100)
+     .setLabel("Set C")
+     .setColorActive(color(255, 0, 0))
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         selectedMenu = 3;
+         updateMenuButtons();
+       }
+     });
+
+  cp5.addButton("lunchMenu4")
+     .setPosition((width / 2) + 300, (height / 2) + 25)
+     .setSize(150, 100)
+     .setLabel("Set D")
+     .setColorActive(color(255, 0, 0))
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         selectedMenu = 4;
+         updateMenuButtons();
+       }
+     });
+
+  cp5.addButton("next3")
+     .setPosition(width / 2 + 150, height - 150)
+     .setSize(350, 100)
+     .setLabel("Next")
+     .setColorActive(color(255, 0, 0)) // Set active color to red
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         step = 5;
+       }
+     });
+     cp5.getController("lunchMenu1").getCaptionLabel().setFont(buttonFont); // Set font for the "lunchMenu1" button
+     cp5.getController("lunchMenu2").getCaptionLabel().setFont(buttonFont); // Set font for the "lunchMenu2" button
+     cp5.getController("lunchMenu3").getCaptionLabel().setFont(buttonFont); // Set font for the "lunchMenu3" button
+     cp5.getController("lunchMenu4").getCaptionLabel().setFont(buttonFont); // Set font for the "lunchMenu4" button
+     cp5.getController("next3").getCaptionLabel().setFont(buttonFont); // Set font for the "next3" button
+}
+
+void createStep4Buttons() {
+   PFont buttonFont = createFont("Arial", 60); // Create a font with size 20
+  cp5.addButton("next4")
+   .setPosition(width / 2 + 25, height - 250)
+   .setSize(100, 50)
+   .setLabel("Next")
+   .setColorActive(color(255, 0, 0))
+   .hide()
+   .onClick(new CallbackListener() {
+     public void controlEvent(CallbackEvent event) {
+       println("Next4 button clicked"); // Add this line to print when the button is clicked
+       step = 5;
+     }
+   });
+    cp5.getController("next4").getCaptionLabel().setFont(buttonFont); // Set font for the "next3" button
+}
+
+void createStep5Buttons() {
+  PFont buttonFont = createFont("Arial", 20); // Create a font with size 20
+  cp5.addButton("next5")
+     .setPosition(width / 2 - 50, height - 250)
+     .setSize(100, 50)
+     .setLabel("Next")
+     .setColorActive(color(255, 0, 0))
+     .hide()
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         step = 6;
+       }
+     });
+     cp5.getController("next5").getCaptionLabel().setFont(buttonFont); // Set font for the "next3" button
+}
+
+void createStep7Buttons() {
+  PFont buttonFont = createFont("Arial", 20); // Create a font with size 20
+    // Create the confirm button
+  cp5.addButton("confirm")
+     .setPosition(width / 2 + 225, height - 200)
+     .setSize(100, 50)
+     .setLabel("Confirm")
+     .setColorActive(color(255, 0, 0))
+     .onClick(new CallbackListener() {
+       public void controlEvent(CallbackEvent event) {
+         myPort.write('S');
+         delay(3000);
+         step = 1;
+       }
+     });
+     cp5.getController("confirm").getCaptionLabel().setFont(buttonFont); // Set font for the "confirm" button
+}
+
+
+void updateMenuButtons() {
+  for (int i = 1; i <= 4; i++) {
+    if (i == selectedMenu) {
+      cp5.getController("lunchMenu" + i).setColorBackground(color(255, 0, 0));
+    } else {
+      cp5.getController("lunchMenu" + i).setColorBackground(color(255, 0, 255));
+    }
+  }
+}
